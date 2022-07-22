@@ -2,7 +2,10 @@
 #define _TRANSFORM_H_
 
 #include <vector>
-#include "Points.h"
+#include "points.h"
+
+#define vd std::vector<double>
+#define vvd std::vector<std::vector<double>>
 
 #define PI (2.0 * acos(0.0))
 
@@ -11,9 +14,9 @@ class Transform
 private:
     std::vector<std::vector<double>> matrix;
 
-    Point cross(const Point &u, const Point &v)
+    Point cross(Point &u, Point &v)
     {
-        return Point(u.cy * v.cz - u.cz * v.cy, u.cz * v.cx - u.cx * v.cz, u.cx * v.cy - u.cy * v.cx);
+        return Point(u.getY() * v.getZ() - u.getZ() * v.getY(), u.getZ() * v.getX() - u.getX() * v.getZ(), u.getX() * v.getY() - u.getY() * v.getX());
     }
 
     Point RodriguesFormula(Point x, Point a, double theta)
@@ -35,19 +38,38 @@ public:
         }
     }
 
-    void generateTranslationMatrix(double tx, double ty, double tz){
+    void generateTranslationMatrix(double tx, double ty, double tz)
+    {
         matrix[0][3] = tx;
         matrix[1][3] = ty;
         matrix[2][3] = tz;
     }
 
-    void generateScaleMatrix(double sx, double sy, double sz){
+    void generateScaleMatrix(double sx, double sy, double sz)
+    {
         matrix[0][0] = sx;
         matrix[1][1] = sy;
         matrix[2][2] = sz;
     }
 
-    void generateRotationMatrix(double angle, const Point& a){
+    void insertMatrix(vvd &matrix, Point &a, Point &b, Point &c)
+    {
+        /* generating corresponding rotation matrix R */
+        matrix[0][0] = a.getX();
+        matrix[1][0] = a.getY();
+        matrix[2][0] = a.getZ();
+
+        matrix[0][1] = b.getX();
+        matrix[1][1] = b.getY();
+        matrix[2][1] = b.getZ();
+
+        matrix[0][2] = c.getX();
+        matrix[1][2] = c.getY();
+        matrix[2][2] = c.getZ();
+    }
+
+    void generateRotationMatrix(double angle, Point &a)
+    {
         a = a.normalize();
 
         Point x = Point(1, 0, 0);
@@ -58,35 +80,56 @@ public:
         Point c2 = RodriguesFormula(y, a, angle);
         Point c3 = RodriguesFormula(z, a, angle);
 
-        /* generating corresponding rotation matrix R */
-        matrix[0][0] = c1.getX();
-        matrix[1][0] = c1.getY();
-        matrix[2][0] = c1.getZ();
-
-        matrix[0][1] = c2.getX();
-        matrix[1][1] = c2.getY();
-        matrix[2][1] = c2.getZ();
-
-        matrix[0][2] = c3.getX();
-        matrix[1][2] = c3.getY();
-        matrix[2][2] = c3.getZ();
+        insertMatrix(matrix, c1, c2, c3);
     }
 
-    Point operator*(const Point point)
+    Transform generateViewMatrix(Point eye, Point look, Point up)
     {
-        /* 4x4 & 4x1 matrices multiplication */
-        double temp[4];
+        Point l = look - eye;
+        l = l.normalize();
 
+        Point r = cross(l, up);
+        r = r.normalize();
+
+        Point u = cross(r, l);
+        // u = u.normalize();
+
+        Transform t(4);
+        t.generateTranslationMatrix(-eye.getX(), -eye.getY(), -eye.getZ());
+
+        insertMatrix(matrix, r, u, l);
         for (int i = 0; i < 4; i++)
         {
-            temp[i] = 0.0;
-
-            for (int j = 0; j < 4; j++)
-            {
-                temp[i] += matrix[i][j] * ((j == 0) ? point.getX() : ((j == 1) ? point.getY() : ((j == 2) ? point.getZ() : point.getW())));
-            }
+            matrix[2][i] = -matrix[2][i];
         }
-        return Point(temp[0], temp[1], temp[2], temp[3]);
+
+        return t;
+    }
+
+    void generateProjectionMatrix(double fovY, double aspectRatio, double near, double far)
+    {
+        /* determining parameters fovX, t & r */
+        double fovX = fovY * aspectRatio;
+        double t = near * tan((fovY / 2.0) * (PI / 180.0));
+        double r = near * tan((fovX / 2.0) * (PI / 180.0));
+
+        /* generating corresponding projection matrix P */
+        matrix[0][0] = near / r;
+        matrix[1][1] = near / t;
+        matrix[2][2] = -(far + near) / (far - near);
+        matrix[2][3] = -(2.0 * far * near) / (far - near);
+        matrix[3][2] = -1.0;
+        matrix[3][3] = 0.0;
+    }
+
+    std::vector<std::vector<double>> getMatrix()
+    {
+        return this->matrix;
+    }
+
+    void setMatrix(std::vector<std::vector<double>> matrix)
+    {
+        this->matrix = matrix;
     }
 };
 
