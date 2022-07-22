@@ -2,6 +2,7 @@
 #define _POINTS_H_
 
 #include <cmath>
+#include <fstream>
 
 class Point
 {
@@ -106,15 +107,57 @@ public:
     {
         return Point(cx / cw, cy / cw, cz / cw);
     }
+
+    friend std::ifstream &operator>>(std::ifstream &in, Point &p)
+    {
+        in >> p.cx >> p.cy >> p.cz >> p.cw;
+        return in;
+    }
+
+    friend std::ofstream &operator<<(std::ofstream &out, const Point &p)
+    {
+        out << p.cx << " " << p.cy << " " << p.cz << " " << p.cw;
+        return out;
+    }
 };
 
-class traingle
+class Triangle
 {
-    Point sides[3];
+    Point cords[3];
     struct Color
     {
         int r, g, b;
     } color;
+
+public:
+    void setCords(Point a, Point b, Point c)
+    {
+        cords[0] = a;
+        cords[1] = b;
+        cords[2] = c;
+    }
+
+    void setColor(int a, int b, int c)
+    {
+        color.r = a;
+        color.g = b;
+        color.b = c;
+    }
+
+    double maxYOfAllCords()
+    {
+        return std::max(cords[0].getY(), std::max(cords[1].getY(), cords[2].getY()));
+    }
+
+    double minYOfAllCords()
+    {
+        return std::min(cords[0].getY(), std::min(cords[1].getY(), cords[2].getY()));
+    }
+
+    Point getSide(int index)
+    {
+        return cords[index];
+    }
 };
 
 #endif // _POINTS_H_
