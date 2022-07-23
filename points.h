@@ -3,6 +3,8 @@
 
 #include <cmath>
 #include <fstream>
+#include <cstdlib>
+#include <iomanip>
 
 class Point
 {
@@ -19,6 +21,7 @@ public:
         this->cx = cx;
         this->cy = cy;
         this->cz = cz;
+        this->cw = 1;
         this->magnitude = sqrt(pow(cx, 2.0) + pow(cy, 2.0) + pow(cz, 2.0));
     }
 
@@ -116,7 +119,7 @@ public:
 
     friend std::ofstream &operator<<(std::ofstream &out, const Point &p)
     {
-        out << p.cx << " " << p.cy << " " << p.cz << " " << p.cw;
+        out << fixed << setprecision(5) << p.cx << " " << p.cy << " " << p.cz;
         return out;
     }
 };
@@ -157,6 +160,11 @@ public:
     Point getSide(int index)
     {
         return cords[index];
+    }
+
+    int getColor(char a)
+    {
+        return a == 'b' ? color.b : (a == 'r' ? color.r : color.g);
     }
 };
 

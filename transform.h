@@ -14,26 +14,40 @@ class Transform
 private:
     std::vector<std::vector<double>> matrix;
 
-    Point cross(Point &u, Point &v)
+    Point cross(Point u, Point v)
     {
         return Point(u.getY() * v.getZ() - u.getZ() * v.getY(), u.getZ() * v.getX() - u.getX() * v.getZ(), u.getX() * v.getY() - u.getY() * v.getX());
     }
 
+    Point scale(Point x, double val)
+    {
+        return Point(x.getX() * val, x.getY() * val, x.getZ() * val);
+    }
+
+    Point multiply(Point x, Point y)
+    {
+        return Point(x.getX() * y.getX(), x.getY() * y.getY(), x.getZ() * y.getZ());
+    }
+
     Point RodriguesFormula(Point x, Point a, double theta)
     {
-        return (x * cos(theta * PI / 180.0) + a * (a * x) * (1 - cos(theta * PI / 180.0)) + (cross(a, x)) * sin(theta * PI / 180.0));
+        return (scale(x, cos(theta * PI / 180.0)) + multiply(a, scale(multiply(a, x), (1 - cos(theta * PI / 180.0)))) + scale((cross(a, x)), sin(theta * PI / 180.0)));
     }
 
 public:
     Transform(int n)
     {
-        matrix.resize(n, std::vector<double>(n, 0));
+        matrix.resize(n, std::vector<double>(n, 0.0));
         for (int i = 0; i < n; i++)
         {
             for (int j = 0; j < n; j++)
             {
                 if (i == j)
                     matrix[i][j] = 1;
+                else
+                {
+                    matrix[i][j] = 0;
+                }
             }
         }
     }
@@ -72,9 +86,9 @@ public:
     {
         a = a.normalize();
 
-        Point x = Point(1, 0, 0);
-        Point y = Point(0, 1, 0);
-        Point z = Point(0, 1, 0);
+        Point x = Point(1.0, 0, 0);
+        Point y = Point(0, 1.0, 0);
+        Point z = Point(0, 0, 1.0);
 
         Point c1 = RodriguesFormula(x, a, angle);
         Point c2 = RodriguesFormula(y, a, angle);
@@ -97,11 +111,17 @@ public:
         Transform t(4);
         t.generateTranslationMatrix(-eye.getX(), -eye.getY(), -eye.getZ());
 
-        insertMatrix(matrix, r, u, l);
-        for (int i = 0; i < 4; i++)
-        {
-            matrix[2][i] = -matrix[2][i];
-        }
+        matrix[0][0] = r.getX();
+        matrix[0][1] = r.getY();
+        matrix[0][2] = r.getZ();
+
+        matrix[1][0] = u.getX();
+        matrix[1][1] = u.getY();
+        matrix[1][2] = u.getZ();
+
+        matrix[2][0] = -l.getX();
+        matrix[2][1] = -l.getY();
+        matrix[2][2] = -l.getZ();
 
         return t;
     }
@@ -110,8 +130,8 @@ public:
     {
         /* determining parameters fovX, t & r */
         double fovX = fovY * aspectRatio;
-        double t = near * tan((fovY / 2.0) * (PI / 180.0));
-        double r = near * tan((fovX / 2.0) * (PI / 180.0));
+        double t = near * tan(fovY / 2.0 * PI / 180.0);
+        double r = near * tan(fovX / 2.0 * PI / 180.0);
 
         /* generating corresponding projection matrix P */
         matrix[0][0] = near / r;
