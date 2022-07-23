@@ -215,7 +215,7 @@ void stage2(std::ifstream &in, std::ofstream &out)
     out.close();
 }
 
-void stage3(std::ifstream& in, std::ofstream& out)
+void stage3(std::ifstream &in, std::ofstream &out)
 {
     Transform t(4);
     t.generateProjectionMatrix(fovY, aspectRatio, near, far);
@@ -264,22 +264,31 @@ void zBuffer(Triangle triangles[])
 
     int topS, bottomS;
     int lI, rI;
+    double maxX, minX;
+
     for (int i = 0; i < triangleCount; i++)
     {
-        if(triangles[i].maxYOfAllCords() >= topY){
+        if (triangles[i].maxYOfAllCords() >= topY)
+        {
             topS = 0;
-        }else{
+        }
+        else
+        {
             topS = (int)(round((topY - triangles[i].maxYOfAllCords()) / dy));
         }
 
-        if(triangles[i].minYOfAllCords() <= bottomY){
+        if (triangles[i].minYOfAllCords() <= bottomY)
+        {
             bottomS = screenHeight;
-        }else{
+        }
+        else
+        {
             bottomS = screenHeight - (1 + ((int)round((triangles[i].minYOfAllCords() - bottomY) / dy)));
         }
 
-        for (int r = topS; r <= bottomS; r++){
-            double midVal = topY - r*dy;
+        for (int r = topS; r <= bottomS; r++)
+        {
+            double midVal = topY - r * dy;
 
             Point intersect[3];
             intersect[0] = Point(INF, midVal, 0, 1);
@@ -309,17 +318,143 @@ void zBuffer(Triangle triangles[])
                     bool yMaxValTrue = intersect[j].getY() > std::max(p1.getY(), p2.getY());
                     bool yMinValTrue = intersect[j].getY() < std::min(p1.getY(), p2.getY());
 
-                     if ((xMaxValTrue || xMinValTrue) || (yMaxValTrue || yMinValTrue))
+                    if ((xMaxValTrue || xMinValTrue) || (yMaxValTrue || yMinValTrue))
                     {
                         intersect[j].setX(INF);
+                    }
+
+                    int maxIndex = -1, minIndex = -1;
+
+                    for (int j = 0; j < 3; j++)
+                    {
+                        if (maxIndex == -1 && minIndex == -1)
+                        {
+                            if (intersect[j].getX() != INF)
+                            {
+                                maxIndex = minIndex = j;
+                                maxX = minX = intersect[j].getX();
+                            }
+                        }
+                        else
+                        {
+                            if (intersect[j].getX() != INF)
+                            {
+                                if (intersect[j].getX() < minX)
+                                {
+                                    minIndex = j;
+                                    minX = intersect[j].getX();
+                                }
+                                if (intersect[j].getX() > maxX)
+                                {
+                                    maxIndex = j;
+                                    maxX = intersect[j].getX();
+                                }
+                            }
+                        }
+                    }
+
+                    if (intersect[minIndex].getX() <= leftX)
+                    {
+                        lI = 0;
+                    }
+                    else
+                    {
+                        lI = (int)round((intersect[minIndex].getX() - leftX) / dx);
+                    }
+                    if (intersect[maxIndex].getX() >= rightX)
+                    {
+                        rI = screenWidth - 1;
+                    }
+                    else
+                    {
+                        rI = screenWidth - (1 + ((int)round((rightX - intersect[maxIndex].getX()) / dx)));
+                    }
+
+                    int index1 = (int)intersect[minIndex].getZ();
+
+                    int index2 = (int)intersect[minIndex].getW();
+
+                    Point p1 = triangles[i].getSide(index1);
+                    Point p2 = triangles[i].getSide(index2);
+
+                    double za = p1.getZ() + (intersec[minIndex].getY() - p1.getY()) * (p2.getZ() - p1.getZ()) / (p2.getY() - p1.getY());
+
+                    index1 = (int)intersect[maxIndex].getZ();
+                    index2 = (int)intersect[maxIndex].getW();
+
+                    p1 = triangles[i].getSide(index1);
+                    p2 = triangles[i].getSide(index2);
+
+                    double zb = p1.getZ() + (intersectingPoints[maxIndex].getY() - p1.getY()) * (p2.getZ() - p1.getZ()) / (p2.getY() - p1.getY());
+
+                    double zVal = 0.0;
+                    for (int k = lI; k <= rI; k++)
+                    {
+                        if (k == leftIntersect)
+                        {
+                            zVal = za + ((leftX + lI * dx) - intersect[minIndex].getX()) * (zb - za) / (intersect[maxIndex].getX() - intersect[minIndex].getX());
+                        }
+                        else
+                        {
+                            zVal += +dx * (zb - za) / (intersect[maxIndex].getX() - intersect[minIndex].getX());
+                        }
+
+                        /**
+                         * @brief z value was calculated
+                         * here
+                         */
+                        if (zVal > frontLimitZ && zVal < zBuffer[row][column])
+                        {
+                            zBuffer[row][column] = zVal;
+
+                            refreshBuffer[row][column].redValue = triangles[i].r.redValue;
+                            refreshBuffer[row][column].greenValue = triangles[i].g.greenValue;
+                            refreshBuffer[row][column].blueValue = triangles[i].b.blueValue;
+                        }
                     }
                 }
             }
         }
     }
+
+    handleMBMP(zBuffer, refreshBuffer)
 }
 
-void stage4(std::ifstream& ins, std::ifstream& inc, std::ofstream& out)
+void handleBMP(vvd &zBuffer, std::vector<std::vector<Color>> &refreshBuffer)
+{
+    bitmap_image bitmapImage(screenWidth, screenHeight);
+
+    for (int row = 0; row < screenHeight; row++)
+    {
+        for (int column = 0; column < screenWidth; column++)
+        {
+            bitmapImage.set_pixel(column, row, refreshBuffer[row][column].redValue, refreshBuffer[row][column].greenValue, refreshBuffer[row][column].blueValue);
+        }
+    }
+    bitmapImage.save_image("out.bmp");
+
+    std::ofstream outZ.open("z-buffer.txt");
+    if (!outZ.is_open())
+    {
+        exit(0);
+    }
+
+    for (int row = 0; row < screenHeight; row++)
+    {
+        for (int column = 0; column < screenWidth; column++)
+        {
+            if (zBuffer[row][column] < rearLimitZ)
+            {
+                outZ << zBuffer[row][column] << '\t';
+            }
+        }
+        outZ << endl;
+    }
+
+    outZ.close();
+}
+
+void stage4(std::ifstream &ins, std::ifstream &inc, std::ofstream &out)
 {
     inc >> screenWidth >> screenHeight;
     inc >> leftLimitX >> bottomLimitY;
@@ -348,6 +483,11 @@ void stage4(std::ifstream& ins, std::ifstream& inc, std::ofstream& out)
         triangles[i].setColor(rand() % 256, rand() % 256, rand() % 256);
     }
 
+    zBuffer(triangles);
+
+    ins.close();
+    inc.close();
+    out.close();
 }
 
 int main(int argc, char **argv)
