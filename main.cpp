@@ -1,10 +1,15 @@
 #include <iostream>
 #include <stack>
-//#include <vector>
+#include <vector>
 #include <string>
-#define INF 1000000
+#include <ctime>
+#include <limits>
+
+using namespace std;
+#define INF std::numeric_limits<double>::infinity()
 
 #include "transform.h"
+#include "bitmap_image.hpp"
 
 int triangleCount;
 
@@ -103,17 +108,25 @@ void stage1(std::ifstream &in, std::ofstream &out)
      * of size 4
      */
     transformStack.push(Transform(4));
-
+    double a, b, c;
     std::string command;
     while (true)
     {
         in >> command;
+        std::cout << command << std::endl;
         if (command == "triangle")
         {
-            Point p1;
-            Point p2;
-            Point p3;
-            in >> p1 >> p2 >> p3;
+            std::cout << "inside here" << std::endl;
+
+            in >> a >> b >> c;
+            Point p1(a, b, c);
+            in >> a >> b >> c;
+            Point p2(a, b, c);
+            in >> a >> b >> c;
+            Point p3(a, b, c);
+            std::cout << p1.getX() << " " << p1.getY() << " " << p1.getZ() << std::endl;
+            std::cout << p2.getX() << " " << p2.getY() << " " << p2.getZ() << std::endl;
+            std::cout << p3.getX() << " " << p3.getY() << " " << p3.getZ() << std::endl;
 
             p1 = transformPoint(transformStack.top(), p1);
             p2 = transformPoint(transformStack.top(), p2);
@@ -129,37 +142,46 @@ void stage1(std::ifstream &in, std::ofstream &out)
         {
             double tx, ty, tz;
             in >> tx >> ty >> tz;
-
+            cout << tx << " " << ty << " " << tz << endl;
             Transform t(4);
             t.generateTranslationMatrix(tx, ty, tz);
 
-            transformStack.push(getProduct(transformStack.top(), t));
+            Transform newT = getProduct(transformStack.top(), t);
+            transformStack.pop();
+            transformStack.push(newT);
         }
         else if (command == "scale")
         {
             double sx, sy, sz;
             in >> sx >> sy >> sz;
+            cout << sx << " " << sy << " " << sz << endl;
 
             Transform t(4);
             t.generateScaleMatrix(sx, sy, sz);
 
-            transformStack.push(getProduct(transformStack.top(), t));
+            Transform newT = getProduct(transformStack.top(), t);
+            transformStack.pop();
+
+            transformStack.push(newT);
         }
         else if (command == "rotate")
         {
             double angle, ax, ay, az;
             in >> angle >> ax >> ay >> az;
+            cout << angle << " " << ax << " " << ay << " " << az << endl;
 
             Transform t(4);
             Point point(ax, ay, az);
             t.generateRotationMatrix(angle, point);
 
-            transformStack.push(getProduct(transformStack.top(), t));
+            Transform newT = getProduct(transformStack.top(), t);
+            transformStack.pop();
+            transformStack.push(newT);
         }
         else if (command == "push")
         {
-            Transform t(4);
-            transformStack.push(getProduct(t, transformStack.top()));
+            // Transform t(4);
+            transformStack.push(transformStack.top());
         }
         else if (command == "pop")
         {
@@ -168,6 +190,7 @@ void stage1(std::ifstream &in, std::ofstream &out)
                 std::cout << "Stack is empty" << std::endl;
                 exit(0);
             }
+            transformStack.pop();
         }
         else if (command == "end")
         {
@@ -195,12 +218,15 @@ void stage2(std::ifstream &in, std::ofstream &out)
     x = x.generateViewMatrix(eye, look, up);
     t = getProduct(t, x);
 
+    double a, b, c;
     for (int i = 0; i < triangleCount; i++)
     {
-        Point p1;
-        Point p2;
-        Point p3;
-        in >> p1 >> p2 >> p3;
+        in >> a >> b >> c;
+        Point p1(a, b, c);
+        in >> a >> b >> c;
+        Point p2(a, b, c);
+        in >> a >> b >> c;
+        Point p3(a, b, c);
 
         p1 = transformPoint(t, p1);
         p2 = transformPoint(t, p2);
@@ -209,6 +235,7 @@ void stage2(std::ifstream &in, std::ofstream &out)
         out << p1 << std::endl;
         out << p2 << std::endl;
         out << p3 << std::endl;
+        out << std::endl;
     }
 
     in.close();
@@ -220,12 +247,15 @@ void stage3(std::ifstream &in, std::ofstream &out)
     Transform t(4);
     t.generateProjectionMatrix(fovY, aspectRatio, near, far);
 
+    double a, b, c;
     for (int i = 0; i < triangleCount; i++)
     {
-        Point p1;
-        Point p2;
-        Point p3;
-        in >> p1 >> p2 >> p3;
+        in >> a >> b >> c;
+        Point p1(a, b, c);
+        in >> a >> b >> c;
+        Point p2(a, b, c);
+        in >> a >> b >> c;
+        Point p3(a, b, c);
 
         p1 = transformPoint(t, p1);
         p2 = transformPoint(t, p2);
@@ -234,6 +264,7 @@ void stage3(std::ifstream &in, std::ofstream &out)
         out << p1 << std::endl;
         out << p2 << std::endl;
         out << p3 << std::endl;
+        out << std::endl;
     }
 
     in.close();
@@ -246,19 +277,53 @@ struct Color
     int r, g, b;
 };
 
+void handleBMP(vvd &zBuffer, std::vector<std::vector<Color>> &refreshBuffer)
+{
+    bitmap_image bitmapImage(screenWidth, screenHeight);
+
+    for (int i = 0; i < screenHeight; i++)
+    {
+        for (int j = 0; j < screenWidth; j++)
+        {
+            bitmapImage.set_pixel(j, i, refreshBuffer[i][j].r, refreshBuffer[i][j].g, refreshBuffer[i][j].b);
+        }
+    }
+    bitmapImage.save_image("out.bmp");
+
+    std::ofstream outZ("z-buffer.txt");
+    if (!outZ.is_open())
+    {
+        exit(0);
+    }
+
+    for (int i = 0; i < screenHeight; i++)
+    {
+        for (int j = 0; j < screenWidth; j++)
+        {
+            if (zBuffer[i][j] < rearLimitZ)
+            {
+                outZ << zBuffer[i][j] << '\t';
+            }
+        }
+        outZ << std::endl;
+    }
+
+    outZ.close();
+}
+
 void zBuffer(Triangle triangles[])
 {
     vvd zBuffer(screenHeight, vd(screenWidth, 0.0));
     std::vector<std::vector<Color>> refreshBuffer(screenHeight, std::vector<Color>(screenWidth));
 
-    for (int row = 0; row < screenHeight; row++)
+    for (int i = 0; i < screenHeight; i++)
     {
-        for (int column = 0; column < screenWidth; column++)
+        for (int j = 0; j < screenWidth; j++)
         {
-            zBuffer[row][column] = rearLimitZ;
-            refreshBuffer[row][column].r = 0;
-            refreshBuffer[row][column].g = 0;
-            refreshBuffer[row][column].b = 0;
+            zBuffer[i][j] = rearLimitZ;
+            refreshBuffer[i][j].r = 0;
+            refreshBuffer[i][j].g = 0;
+            refreshBuffer[i][j].b = 0;
         }
     }
 
@@ -279,7 +344,7 @@ void zBuffer(Triangle triangles[])
 
         if (triangles[i].minYOfAllCords() <= bottomY)
         {
-            bottomS = screenHeight;
+            bottomS = screenHeight - 1;
         }
         else
         {
@@ -377,7 +442,7 @@ void zBuffer(Triangle triangles[])
                     Point p1 = triangles[i].getSide(index1);
                     Point p2 = triangles[i].getSide(index2);
 
-                    double za = p1.getZ() + (intersec[minIndex].getY() - p1.getY()) * (p2.getZ() - p1.getZ()) / (p2.getY() - p1.getY());
+                    double za = p1.getZ() + (intersect[minIndex].getY() - p1.getY()) * (p2.getZ() - p1.getZ()) / (p2.getY() - p1.getY());
 
                     index1 = (int)intersect[maxIndex].getZ();
                     index2 = (int)intersect[maxIndex].getW();
@@ -385,31 +450,31 @@ void zBuffer(Triangle triangles[])
                     p1 = triangles[i].getSide(index1);
                     p2 = triangles[i].getSide(index2);
 
-                    double zb = p1.getZ() + (intersectingPoints[maxIndex].getY() - p1.getY()) * (p2.getZ() - p1.getZ()) / (p2.getY() - p1.getY());
+                    double zb = p1.getZ() + (intersect[maxIndex].getY() - p1.getY()) * (p2.getZ() - p1.getZ()) / (p2.getY() - p1.getY());
 
                     double zVal = 0.0;
                     for (int k = lI; k <= rI; k++)
                     {
-                        if (k == leftIntersect)
+                        if (k == lI)
                         {
                             zVal = za + ((leftX + lI * dx) - intersect[minIndex].getX()) * (zb - za) / (intersect[maxIndex].getX() - intersect[minIndex].getX());
                         }
                         else
                         {
-                            zVal += +dx * (zb - za) / (intersect[maxIndex].getX() - intersect[minIndex].getX());
+                            zVal = zVal + (dx * (zb - za) / (intersect[maxIndex].getX() - intersect[minIndex].getX()));
                         }
 
                         /**
                          * @brief z value was calculated
                          * here
                          */
-                        if (zVal > frontLimitZ && zVal < zBuffer[row][column])
+                        if (zVal > frontLimitZ && zVal < zBuffer[r][k])
                         {
-                            zBuffer[row][column] = zVal;
+                            zBuffer[r][k] = zVal;
 
-                            refreshBuffer[row][column].redValue = triangles[i].r.redValue;
-                            refreshBuffer[row][column].greenValue = triangles[i].g.greenValue;
-                            refreshBuffer[row][column].blueValue = triangles[i].b.blueValue;
+                            refreshBuffer[r][k].r = triangles[i].getColor('r');
+                            refreshBuffer[r][k].g = triangles[i].getColor('g');
+                            refreshBuffer[r][k].b = triangles[i].getColor('b');
                         }
                     }
                 }
@@ -417,47 +482,14 @@ void zBuffer(Triangle triangles[])
         }
     }
 
-    handleMBMP(zBuffer, refreshBuffer)
+    handleBMP(zBuffer, refreshBuffer);
 }
 
-void handleBMP(vvd &zBuffer, std::vector<std::vector<Color>> &refreshBuffer)
-{
-    bitmap_image bitmapImage(screenWidth, screenHeight);
-
-    for (int row = 0; row < screenHeight; row++)
-    {
-        for (int column = 0; column < screenWidth; column++)
-        {
-            bitmapImage.set_pixel(column, row, refreshBuffer[row][column].redValue, refreshBuffer[row][column].greenValue, refreshBuffer[row][column].blueValue);
-        }
-    }
-    bitmapImage.save_image("out.bmp");
-
-    std::ofstream outZ.open("z-buffer.txt");
-    if (!outZ.is_open())
-    {
-        exit(0);
-    }
-
-    for (int row = 0; row < screenHeight; row++)
-    {
-        for (int column = 0; column < screenWidth; column++)
-        {
-            if (zBuffer[row][column] < rearLimitZ)
-            {
-                outZ << zBuffer[row][column] << '\t';
-            }
-        }
-        outZ << endl;
-    }
-
-    outZ.close();
-}
-
-void stage4(std::ifstream &ins, std::ifstream &inc, std::ofstream &out)
+void stage4(std::ifstream &ins, std::ifstream &inc)
 {
     inc >> screenWidth >> screenHeight;
-    inc >> leftLimitX >> bottomLimitY;
+    inc >> leftLimitX;
+    inc >> bottomLimitY;
     inc >> frontLimitZ >> rearLimitZ;
 
     rightLimitX = -leftLimitX;
@@ -473,12 +505,21 @@ void stage4(std::ifstream &ins, std::ifstream &inc, std::ofstream &out)
     Triangle triangles[triangleCount];
     srand(time(0));
     Point s1, s2, s3;
+    double a, b, c;
 
     for (int i = 0; i < triangleCount; i++)
     {
-        ins >> s1;
-        ins >> s2;
-        ins >> s3;
+        ins >> a >> b >> c;
+        Point p1(a, b, c);
+        s1 = p1;
+        ins >> a >> b >> c;
+        Point p2(a, b, c);
+        s3 = p2;
+        ins >> a >> b >> c;
+        Point p3(a, b, c);
+        s3 = p3;
+        /// inst >> s2;
+        /// inst >> s3;
         triangles[i].setCords(s1, s2, s3);
         triangles[i].setColor(rand() % 256, rand() % 256, rand() % 256);
     }
@@ -487,14 +528,13 @@ void stage4(std::ifstream &ins, std::ifstream &inc, std::ofstream &out)
 
     ins.close();
     inc.close();
-    out.close();
 }
 
 int main(int argc, char **argv)
 {
     srand(time(0));
 
-    std::ifstream in("input.txt");
+    std::ifstream in("scene.txt");
     if (!in.is_open())
     {
         std::cout << "Error opening input file" << std::endl;
@@ -510,14 +550,14 @@ int main(int argc, char **argv)
 
     stage1(in, out);
 
-    std::ifstream in("stage1.txt");
+    in.open("stage1.txt");
     if (!in.is_open())
     {
         std::cout << "Error opening input file" << std::endl;
         exit(0);
     }
 
-    std::ofstream out("stage2.txt");
+    out.open("stage2.txt");
     if (!out.is_open())
     {
         std::cout << "Error opening output file" << std::endl;
@@ -525,14 +565,14 @@ int main(int argc, char **argv)
     }
     stage2(in, out);
 
-    std::ifstream in("stage2.txt");
+    in.open("stage2.txt");
     if (!in.is_open())
     {
         std::cout << "Error opening input file" << std::endl;
         exit(0);
     }
 
-    std::ofstream out("stage3.txt");
+    out.open("stage3.txt");
     if (!out.is_open())
     {
         std::cout << "Error opening output file" << std::endl;
@@ -554,13 +594,13 @@ int main(int argc, char **argv)
         exit(0);
     }
 
-    std::ofstream out("stage4.txt");
-    if (!out.is_open())
-    {
-        std::cout << "Error opening output file" << std::endl;
-        exit(0);
-    }
-    stage4(ins, inc, out);
+    // out.open("z_buffer.txt");
+    // if (!out.is_open())
+    // {
+    //     std::cout << "Error opening output file" << std::endl;
+    //     exit(0);
+    // }
+    stage4(ins, inc);
 
     return 0;
 }
