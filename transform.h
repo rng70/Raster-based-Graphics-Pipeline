@@ -106,7 +106,6 @@ public:
         r = r.normalize();
 
         Point u = cross(r, l);
-        // u = u.normalize();
 
         Transform t(4);
         t.generateTranslationMatrix(-eye.getX(), -eye.getY(), -eye.getZ());

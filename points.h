@@ -111,12 +111,6 @@ public:
         return Point(cx / cw, cy / cw, cz / cw);
     }
 
-    friend std::ifstream &operator>>(std::ifstream &in, Point &p)
-    {
-        in >> p.cx >> p.cy >> p.cz >> p.cw;
-        return in;
-    }
-
     friend std::ofstream &operator<<(std::ofstream &out, const Point &p)
     {
         out << fixed << setprecision(5) << p.cx << " " << p.cy << " " << p.cz;

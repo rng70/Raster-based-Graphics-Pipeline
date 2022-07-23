@@ -273,7 +273,6 @@ void stage3(std::ifstream &in, std::ofstream &out)
 
 struct Color
 {
-    /* data */
     int r, g, b;
 };
 
@@ -518,8 +517,6 @@ void stage4(std::ifstream &ins, std::ifstream &inc)
         ins >> a >> b >> c;
         Point p3(a, b, c);
         s3 = p3;
-        /// inst >> s2;
-        /// inst >> s3;
         triangles[i].setCords(s1, s2, s3);
         triangles[i].setColor(rand() % 256, rand() % 256, rand() % 256);
     }
@@ -593,13 +590,6 @@ int main(int argc, char **argv)
         std::cout << "Error opening input file" << std::endl;
         exit(0);
     }
-
-    // out.open("z_buffer.txt");
-    // if (!out.is_open())
-    // {
-    //     std::cout << "Error opening output file" << std::endl;
-    //     exit(0);
-    // }
     stage4(ins, inc);
 
     return 0;
